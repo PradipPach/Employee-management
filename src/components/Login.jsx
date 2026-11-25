@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { admins } from "../data.js";
+import { apiRequest } from "../api.js";
 
 // Page 2: login page of the selected company
 function Login({ company, onSuccess, onBack }) {
@@ -7,16 +7,17 @@ function Login({ company, onSuccess, onBack }) {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  function handleLogin() {
-    // find admin of THIS company with same email and password
-    const admin = admins.find(
-      (a) => a.companyId === company.id && a.email === email && a.password === password
-    );
-
-    if (admin) {
-      onSuccess(company); // login ok
-    } else {
-      setErrorMessage("Wrong email or password");
+  async function handleLogin(event) {
+    event.preventDefault();
+    setErrorMessage("");
+    try {
+      const session = await apiRequest("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ company_id: company.id, email, password }),
+      });
+      onSuccess(session);
+    } catch (error) {
+      setErrorMessage(error.message);
     }
   }
 
@@ -27,27 +28,28 @@ function Login({ company, onSuccess, onBack }) {
 
       {errorMessage && <p className="text-red-600 mb-2">{errorMessage}</p>}
 
-      <input
-        type="email"
-        placeholder="Email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        className="w-full border rounded p-2 mb-3"
-      />
-      <input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        className="w-full border rounded p-2 mb-3"
-      />
+      <form onSubmit={handleLogin}>
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full border rounded p-2 mb-3"
+          required
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full border rounded p-2 mb-3"
+          required
+        />
 
-      <button
-        onClick={handleLogin}
-        className="w-full bg-blue-600 text-white rounded p-2"
-      >
-        Login
-      </button>
+        <button type="submit" className="w-full bg-blue-600 text-white rounded p-2">
+          Login
+        </button>
+      </form>
 
       <button onClick={onBack} className="w-full mt-3 text-sm text-gray-500">
         Back to company list

@@ -10,6 +10,7 @@ function App() {
   const [page, setPage] = useState("companies");
   const [selectedCompany, setSelectedCompany] = useState(null); // company clicked in the list
   const [loggedInCompany, setLoggedInCompany] = useState(null); // company of logged in admin
+  const [accessToken, setAccessToken] = useState(null);
 
   // when user clicks a company
   function handleSelectCompany(company) {
@@ -18,14 +19,16 @@ function App() {
   }
 
   // when login is correct
-  function handleLoginSuccess(company) {
-    setLoggedInCompany(company);
+  function handleLoginSuccess(session) {
+    setLoggedInCompany(session.company);
+    setAccessToken(session.access_token);
     setPage("dashboard");
   }
 
   // when user clicks logout
   function handleLogout() {
     setLoggedInCompany(null);
+    setAccessToken(null);
     setSelectedCompany(null);
     setPage("logout");
   }
@@ -45,7 +48,13 @@ function App() {
   }
 
   if (page === "dashboard") {
-    return <Dashboard company={loggedInCompany} onLogout={handleLogout} />;
+    return (
+      <Dashboard
+        company={loggedInCompany}
+        accessToken={accessToken}
+        onLogout={handleLogout}
+      />
+    );
   }
 
   return <LogoutPage onGoHome={() => setPage("companies")} />;

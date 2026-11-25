@@ -1,15 +1,22 @@
-import { useState } from "react";
-import { employees } from "../data.js";
+import { useEffect, useState } from "react";
+import { apiRequest } from "../api.js";
 
 // Page 3: shows employees and salary of the logged in company only
-function Dashboard({ company, onLogout }) {
+function Dashboard({ company, accessToken, onLogout }) {
   const [searchText, setSearchText] = useState("");
+  const [employees, setEmployees] = useState([]);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  // take only employees of this company
-  const companyEmployees = employees.filter((emp) => emp.companyId === company.id);
+  useEffect(() => {
+    apiRequest("/employees", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+      .then(setEmployees)
+      .catch((error) => setErrorMessage(error.message));
+  }, [accessToken]);
 
   // search by name
-  const shownEmployees = companyEmployees.filter((emp) =>
+  const shownEmployees = employees.filter((emp) =>
     emp.name.toLowerCase().includes(searchText.toLowerCase())
   );
 
@@ -19,10 +26,10 @@ function Dashboard({ company, onLogout }) {
   }
 
   // total salary of all employees
-  let totalSalary = 0;
-  for (let i = 0; i < companyEmployees.length; i++) {
-    totalSalary = totalSalary + getNetSalary(companyEmployees[i]);
-  }
+  const totalSalary = employees.reduce(
+    (total, employee) => total + getNetSalary(employee),
+    0
+  );
 
   return (
     <div className="max-w-5xl mx-auto p-6">
@@ -33,8 +40,9 @@ function Dashboard({ company, onLogout }) {
         </button>
       </div>
 
-      <p className="mb-1">Total employees: {companyEmployees.length}</p>
+      <p className="mb-1">Total employees: {employees.length}</p>
       <p className="mb-4">Total salary: ₹{totalSalary}</p>
+      {errorMessage && <p className="text-red-600 mb-4">{errorMessage}</p>}
 
       <input
         placeholder="Search employee name"
