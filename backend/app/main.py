@@ -12,7 +12,14 @@ from sqlalchemy.orm import Session
 
 from .database import Base, SessionLocal, engine, get_db
 from .models import Admin, Company, Employee
-from .schemas import CompanyOut, EmployeeOut, LoginRequest, LoginResponse
+from .schemas import (
+    CompanyOut,
+    EmployeeCreate,
+    EmployeeOut,
+    EmployeeUpdate,
+    LoginRequest,
+    LoginResponse,
+)
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 if (
@@ -99,7 +106,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=False,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
 )
 
@@ -161,3 +168,75 @@ def list_employees(
         .where(Employee.company_id == company_id)
         .order_by(Employee.id)
     ).all()
+
+
+@app.post(
+    "/api/employees",
+    response_model=EmployeeOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_employee(
+    request: EmployeeCreate,
+    company_id: int = Depends(get_current_company_id),
+    db: Session = Depends(get_db),
+):
+    employee = Employee(company_id=company_id, **request.model_dump())
+    db.add(employee)
+    db.commit()
+    db.refresh(employee)
+    return employee
+
+
+@app.put("/api/employees/{employee_id}", response_model=EmployeeOut)
+def update_employee(
+    employee_id: int,
+    request: EmployeeUpdate,
+    company_id: int = Depends(get_current_company_id),
+    db: Session = Depends(get_db),
+):
+    employee = db.scalar(
+        select(Employee).where(
+            Employee.id == employee_id,
+            Employee.company_id == company_id,
+        )
+    )
+    if employee is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Employee not found",
+        )
+
+    updates = request.model_dump(exclude_unset=True)
+    if not updates:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No employee fields were provided",
+        )
+
+    for field, value in updates.items():
+        setattr(employee, field, value)
+    db.commit()
+    db.refresh(employee)
+    return employee
+
+
+@app.delete("/api/employees/{employee_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_employee(
+    employee_id: int,
+    company_id: int = Depends(get_current_company_id),
+    db: Session = Depends(get_db),
+):
+    employee = db.scalar(
+        select(Employee).where(
+            Employee.id == employee_id,
+            Employee.company_id == company_id,
+        )
+    )
+    if employee is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Employee not found",
+        )
+
+    db.delete(employee)
+    db.commit()
